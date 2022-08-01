@@ -1,12 +1,13 @@
-# code for plotting up fracking results
+#!/usr/bin/env python
 
+# code for plotting up fracking results
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import numpy as np
 from matplotlib import colors
 import sys
-sys.path.append('../DEFRA_network/code')
 from defra_geos_plotting import plot_diff_between_outputs
+sys.path.append('../DEFRA_network/code')
 
 def diverge_map(high=(0.565, 0.392, 0.173), low=(0.094, 0.310, 0.635)): 
 	'''Make a custom diverging cmap. Will go from high, to white, to low.

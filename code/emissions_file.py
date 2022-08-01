@@ -1,15 +1,11 @@
-# Functions and code used to create emissions point source files for fracking work
+#!/usr/bin/env python
 
-###########################################################################################
-# 					FIND NEAREST SITE TO POINT
-###########################################################################################
-# emis_site = (54.2042,-0.892848)
-# site_dict = {}
-# site_list = defra['site'].unique()
-# for site in site_list:
-# 	if not np.isnan(site):
-# 		site_dict[site] = defra.loc[defra.site==site][['latitude','longitude']].iloc[0].values
-
+'''
+Functions and code used to create emissions point source files for fracking work.
+We're interested in hypothetical emissions at:
+ - Preston New Road, PNR (53.787282,-2.951474)
+ - Kirby Misperton, BGS (54.204185,0.892848) 
+'''
 
 def find_nearest_site(site_dict, location, return_distances=False):
     """ 
@@ -54,28 +50,16 @@ def find_nearest_site(site_dict, location, return_distances=False):
         return distance_dict
 
 
-###########################################################################################
-# 			MAKING emissions point source files:
-###########################################################################################
-# check emissions for site location from HEMCO diagnostics
-# hemco = xr.open_mfdataset(hemco_files)
-# #trial site: Kirby Misperton (54.204185, -0.892848) or Lancashire Preston New Road (53.787282,2.951474)
-# KirMis = hemco['EmisNO_Anthro'].sel(time='2019-01-01').isel(lev=0).sel(lat=54.204185,lon=-0.892848,method='nearest')
-# for k in frack_emis.keys():
-# 	NO_emissions = frack_emis[k].isel(lev=0,time=0).sel(lat=54.204185,lon=-0.892848,method='nearest')['EmisNO_Anthro'].values
-# 	print(k, NO_emissions)
-# Lanc_Frack = hemco['EmisNO_Anthro'].isel(lev=0).sel(lat=53.787282,lon=-2.951474,method='nearest').isel(lev=0).values
-
-
+#~~~~~~~~~~~~ Making emissions point source files ~~~~~~~~#
 def make_emission_file(
-    value, lat, lon, pct, savename, savedir, varname="FRACKING", **kwargs
+    emission, lat, lon, pct, savename, savedir, varname="FRACKING", **kwargs
 ):
     """
 	Create a COARDS-compliant emissions netcdf for fracking work.
 	
 	Arguments
 	--------- 
-	value (float): value to emission at the site for a month
+	emission (float): value to emission at the site for a month
 	lat,lon (floats): position of site
 	pct: the percentage of that value to set emission at that point to
 	savename, savedir (str):
@@ -91,21 +75,24 @@ def make_emission_file(
     # arbitrary domain size, just making sure its bigger than the UK nested runs ((45,65),(-15,5))
     lats = np.arange(45, 65.5, 0.5)
     lons = np.arange(-15, 5.625, 0.625)
-    if len(value) == 1:
+    
+    if len(emission) == 1:
         times = [datetime.datetime(2019, 1, 1, 0, 0, 0, 0)]
-    elif len(value) == 12:
+    elif len(emission) == 12:
         times = [datetime.datetime(2019, m, 1, 0, 0, 0, 0) for m in np.arange(1, 13)]
     else:
-        print("length of values is not 1 or 12")
+        print("length of emission is not 1 or 12")
     times = date2num(
         times, units="hours since 2019-01-01 00:00:00 00:00", calendar="standard"
     )
+   
     array = np.full((len(times), len(lats), len(lons)), fill_value=1e-32)
     lat_ix = np.abs(lats - lat).argmin()
     lon_ix = np.abs(lons - lon).argmin()
 
-    fill_value = value * (pct / 100)
-    print(f"Fill value at location is {fill_value}")
+    fill_value = emission * (pct / 100)
+    print(f"Emission  at location is {fill_value}")
+    
     for i, t in enumerate(times):
         if len(times > 1):
             array[i, lat_ix, lon_ix] = fill_value[i]
@@ -122,6 +109,7 @@ def make_emission_file(
         New_f.title = "Fracking NOx emissions 2020-01-01"
     else:
         New_f.title = kwargs["title"]
+    
     New_f.history = f'created {datetime.datetime.today().strftime("%Y-%m-%d")} by LF'
     New_f.SpatialCoverage = "UK nested grid domain"
     New_f.Resolution = "0.1x0.1"
@@ -136,13 +124,13 @@ def make_emission_file(
     New_f.createVariable("lat", "f4", ("lat"))
     New_f["lat"].long_name = "Latitude"
     New_f["lat"].units = "degrees_north"
-    New_f["lat"][:] = lats  # _list
+    New_f["lat"][:] = lats  
     New_f["lat"].axis = "Y"
 
     New_f.createVariable("lon", "f4", ("lon"))
     New_f["lon"].long_name = "Longitude"
     New_f["lon"].units = "degrees_east"
-    New_f["lon"][:] = lons  # _list
+    New_f["lon"][:] = lons  
     New_f["lon"].axis = "X"
 
     New_f.createVariable(varname, "f8", ("time", "lat", "lon"))
@@ -156,6 +144,22 @@ def make_emission_file(
     New_f.close()
     print(f"done")
 
+# emis_site = (54.2042,-0.892848)
+# site_dict = {}
+# site_list = defra['site'].unique()
+# for site in site_list:
+# 	if not np.isnan(site):
+# 		site_dict[site] = defra.loc[defra.site==site][['latitude','longitude']].iloc[0].values
+
+# check emissions for site location from HEMCO diagnostics
+#############################################################
+# hemco = xr.open_mfdataset(hemco_files)
+# #trial site: Kirby Misperton (54.204185, -0.892848) or Lancashire Preston New Road (53.787282,2.951474)
+# KirMis = hemco['EmisNO_Anthro'].sel(time='2019-01-01').isel(lev=0).sel(lat=54.204185,lon=-0.892848,method='nearest')
+# for k in frack_emis.keys():
+# 	NO_emissions = frack_emis[k].isel(lev=0,time=0).sel(lat=54.204185,lon=-0.892848,method='nearest')['EmisNO_Anthro'].values
+# 	print(k, NO_emissions)
+# Lanc_Frack = hemco['EmisNO_Anthro'].isel(lev=0).sel(lat=53.787282,lon=-2.951474,method='nearest').isel(lev=0).values
 
 # savedir = '.'
 # files = {}
